@@ -17,6 +17,8 @@ int are_commands_parallel = 0;
 int is_redirection = 0;
 int is_cd = 0;
 int is_pipeline = 0;
+char current_working_directory[1024];
+char *old_pwd = NULL;
 
 // trap handler code for CTRL + C.
 void handle_sigint(int signal)
@@ -128,10 +130,25 @@ void executeCommand(char **arg_list)
 	else
 	{
 		is_cd = 0;
-		if (chdir(arg_list[1]) != 0)
+		if (strcmp(arg_list[1], "-") != 0 && chdir(arg_list[1]) != 0)
 		{
 			printf("Shell: No such directory exists\n");
 		}
+		if (strcmp(arg_list[1], "-") == 0)
+		{
+			if (!old_pwd)
+				printf("Shell: OLDPWD not set\n");
+			else
+			{
+				chdir(old_pwd);
+				printf("%s\n", old_pwd);		
+				old_pwd = strdup(current_working_directory);
+			}
+		}
+		
+                old_pwd = strdup(current_working_directory);     
+                getcwd(current_working_directory, sizeof(current_working_directory));
+			
 	}
 }
 
@@ -311,6 +328,7 @@ void executePipelineCommands(char ***arg_list)
         wait(NULL);
     }
 }
+
 int main()
 {
 	while (1)
@@ -318,8 +336,6 @@ int main()
 		// triggers the trap handler code defined above.
 		signal(SIGINT, handle_sigint);
 		signal(SIGTSTP, handle_sigtstp);
-
-		char current_working_directory[1024];
 
 		// using cwd(), fetching the current working directory.
 		if (getcwd(current_working_directory, sizeof(current_working_directory)) != NULL)
@@ -363,6 +379,7 @@ int main()
 		}
 		else if(is_pipeline)
 		{
+			printf("Pipeline...\n");
 			executePipelineCommands(arg_list);
 		}
 
